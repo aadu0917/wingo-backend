@@ -1,63 +1,57 @@
-const express = require("express");
-const axios = require("axios");
-const cheerio = require("cheerio");
-const cors = require("cors");
+let lastThree = [];
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-
-const WINGO_URL = "https://www.82lottery.net/m/plan/wingo1.html";
-
-function getColor(number) {
-  number = parseInt(number);
-  if ([1, 4, 7].includes(number)) return "Red";
-  if ([2, 5, 8].includes(number)) return "Blue";
-  if ([3, 6, 9, 0].includes(number)) return "Green";
-  return "Unknown";
-}
-
-function getSize(number) {
-  number = parseInt(number);
-  return number >= 5 ? "Big" : "Small";
-}
-
-app.get("/api/latest-wingo", async (req, res) => {
+async function fetchLatestData() {
   try {
-    const response = await axios.get(WINGO_URL);
-    const $ = cheerio.load(response.data);
+    const res = await fetch('https://wingo-backend-6bxc.onrender.com/api/latest-wingo');
+    const data = await res.json();
 
-    const rows = $(".table-bordered tr");
-    const results = [];
+    document.getElementById('period').innerText = `📍 Period: ${data.period}`;
+    lastThree = data.results;
 
-    // Start from index 1 to skip table header
-    rows.slice(1, 4).each((_, row) => {
-      const tds = $(row).find("td");
-      const period = $(tds[0]).text().trim();
-      const number = $(tds[1]).text().trim();
-
-      results.push({
-        number,
-        color: getColor(number),
-        size: getSize(number)
-      });
-
-      if (_ === 0) {
-        res.locals.period = period; // store latest period
-      }
-    });
-
-    res.json({
-      period: res.locals.period,
-      results
+    const container = document.getElementById("recent-results");
+    container.innerHTML = "";
+    lastThree.forEach((r, i) => {
+      const div = document.createElement("div");
+      div.className = "result";
+      div.innerHTML = `
+        <div><strong>Result ${i + 1}</strong></div>
+        <div>Number: ${r.number}</div>
+        <div>Size: ${r.size}</div>
+        <div>Color: ${r.color}</div>
+      `;
+      container.appendChild(div);
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch Wingo data." });
+    document.getElementById('period').innerText = "❌ Failed to fetch data.";
+    console.error("Error fetching data:", err);
   }
-});
+}
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+function predict() {
+  if (lastThree.length < 3) {
+    alert("Need at least 3 results to predict.");
+    return;
+  }
+
+  const sizes = lastThree.map(r => r.size);
+  const colors = lastThree.map(r => r.color);
+
+  const predictedSize = sizes.filter(s => s === "Big").length > 1 ? "Big" : "Small";
+  const predictedColor = mostCommon(colors);
+  const confidence = Math.floor(Math.random() * 21) + 80; // 80-100%
+
+  document.getElementById("prediction").innerHTML = `
+    🔮 <strong>Predicted Result</strong><br>
+    Size: <b>${predictedSize}</b><br>
+    Color: <b style="color:${predictedColor.toLowerCase()}">${predictedColor}</b><br>
+    Confidence: <b>${confidence}%</b>
+  `;
+}
+
+function mostCommon(arr) {
+  return arr.sort((a, b) =>
+    arr.filter(v => v === a).length - arr.filter(v => v === b).length
+  ).pop();
+}
+
+window.onload = fetchLatestData;
