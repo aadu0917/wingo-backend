@@ -38,7 +38,7 @@ function predict() {
 
   const predictedSize = sizes.filter(s => s === "Big").length > 1 ? "Big" : "Small";
   const predictedColor = mostCommon(colors);
-  const confidence = Math.floor(Math.random() * 21) + 80; // 80-100%
+  const confidence = Math.floor(Math.random() * 21) + 80; // Confidence 80–100%
 
   document.getElementById("prediction").innerHTML = `
     🔮 <strong>Predicted Result</strong><br>
